@@ -7,7 +7,7 @@ use bytes::buf::BufExt as _;
 use entity::{DriveItemList, DriveItemMetadata};
 use hyper::client::HttpConnector;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Method, Request, Response, Server, StatusCode};
+use hyper::{header, Body, Client, Method, Request, Response, Server, StatusCode};
 use hyper_tls::HttpsConnector;
 use lib::{generate_get_request, generate_json, GenericError, Result};
 use regex::Regex;
@@ -52,24 +52,21 @@ async fn file_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
 }
 
 async fn download_handler(client: &HyperClient, _path: &str) -> Result<Response<Body>> {
-    let url = String::from("https://alphaone-my.sharepoint.cn/personal/marisa_cnod_xyz/_layouts/15/download.aspx?UniqueId=3a6b217a-16a3-4cdb-9c85-c585be3b52cc&Translate=false&tempauth=eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJhdWQiOiIwMDAwMDAwMy0wMDAwLTBmZjEtY2UwMC0wMDAwMDAwMDAwMDAvYWxwaGFvbmUtbXkuc2hhcmVwb2ludC5jbkAzYjFjODFiMS1kMTU2LTRhZjktYjE2OS1hZTA4MTI4YzAzOTYiLCJpc3MiOiIwMDAwMDAwMy0wMDAwLTBmZjEtY2UwMC0wMDAwMDAwMDAwMDAiLCJuYmYiOiIxNTc4MDEyMTUzIiwiZXhwIjoiMTU3ODAxNTc1MyIsImVuZHBvaW50dXJsIjoiTnVOZXZjWTFtMHNsTlg2RzFDbTFZK3l5aXA2bnBhMlQ4Q0l3UTZQc3lBbz0iLCJlbmRwb2ludHVybExlbmd0aCI6IjE0NiIsImlzbG9vcGJhY2siOiJUcnVlIiwiY2lkIjoiTVdJelpqUTNNbVF0TmpWbVlTMDBZVFU0TFdFeE1EQXRPR1k0WkdZeU4yTmhOREF3IiwidmVyIjoiaGFzaGVkcHJvb2Z0b2tlbiIsInNpdGVpZCI6IlptWXlZamhoT1RBdE9EVmlNeTAwTlRjM0xUbGtaV0l0WTJFM09ETTJObVkwTVdFMyIsImFwcF9kaXNwbGF5bmFtZSI6Ik9uZURyaXZlIGZvciBBUEkiLCJzaWduaW5fc3RhdGUiOiJbXCJrbXNpXCJdIiwiYXBwaWQiOiJkZmUzNmU2MC02MTMzLTQ4Y2YtODY5Zi00ZDE1YjgzNTQ3NjkiLCJ0aWQiOiIzYjFjODFiMS1kMTU2LTRhZjktYjE2OS1hZTA4MTI4YzAzOTYiLCJ1cG4iOiJtYXJpc2FAY25vZC54eXoiLCJwdWlkIjoiMTAwMzMyMzBDNTFBMTNDOSIsImNhY2hla2V5IjoiMGguZnxtZW1iZXJzaGlwfDEwMDMzMjMwYzUxYTEzYzlAbGl2ZS5jb20iLCJzY3AiOiJhbGxmaWxlcy53cml0ZSBhbGxwcm9maWxlcy5yZWFkIiwidHQiOiIyIiwidXNlUGVyc2lzdGVudENvb2tpZSI6bnVsbH0.dnp2UVR2dllhTDVPV2NqbzRhbDNwOFVYRTBoMktCa3BIQkU0WGJCaS9yND0&ApiVersion=2.0");
+    let url = String::from("https://alphaone-my.sharepoint.cn/personal/marisa_cnod_xyz/_layouts/15/download.aspx?UniqueId=3a6b217a-16a3-4cdb-9c85-c585be3b52cc&Translate=false&tempauth=eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJhdWQiOiIwMDAwMDAwMy0wMDAwLTBmZjEtY2UwMC0wMDAwMDAwMDAwMDAvYWxwaGFvbmUtbXkuc2hhcmVwb2ludC5jbkAzYjFjODFiMS1kMTU2LTRhZjktYjE2OS1hZTA4MTI4YzAzOTYiLCJpc3MiOiIwMDAwMDAwMy0wMDAwLTBmZjEtY2UwMC0wMDAwMDAwMDAwMDAiLCJuYmYiOiIxNTc4MDM5NTg1IiwiZXhwIjoiMTU3ODA0MzE4NSIsImVuZHBvaW50dXJsIjoiTnVOZXZjWTFtMHNsTlg2RzFDbTFZK3l5aXA2bnBhMlQ4Q0l3UTZQc3lBbz0iLCJlbmRwb2ludHVybExlbmd0aCI6IjE0NiIsImlzbG9vcGJhY2siOiJUcnVlIiwiY2lkIjoiTm1NME5EaG1NMll0T1dObVlpMDBaVE5rTFRnMU1qRXROVGN6TURrM09UY3dPVGcyIiwidmVyIjoiaGFzaGVkcHJvb2Z0b2tlbiIsInNpdGVpZCI6IlptWXlZamhoT1RBdE9EVmlNeTAwTlRjM0xUbGtaV0l0WTJFM09ETTJObVkwTVdFMyIsImFwcF9kaXNwbGF5bmFtZSI6Ik9uZURyaXZlIGZvciBBUEkiLCJzaWduaW5fc3RhdGUiOiJbXCJrbXNpXCJdIiwiYXBwaWQiOiJkZmUzNmU2MC02MTMzLTQ4Y2YtODY5Zi00ZDE1YjgzNTQ3NjkiLCJ0aWQiOiIzYjFjODFiMS1kMTU2LTRhZjktYjE2OS1hZTA4MTI4YzAzOTYiLCJ1cG4iOiJtYXJpc2FAY25vZC54eXoiLCJwdWlkIjoiMTAwMzMyMzBDNTFBMTNDOSIsImNhY2hla2V5IjoiMGguZnxtZW1iZXJzaGlwfDEwMDMzMjMwYzUxYTEzYzlAbGl2ZS5jb20iLCJzY3AiOiJhbGxmaWxlcy53cml0ZSBhbGxwcm9maWxlcy5yZWFkIiwidHQiOiIyIiwidXNlUGVyc2lzdGVudENvb2tpZSI6bnVsbH0.aG1lQzFxUzF5WWJlblI3V285UFVQV1NCQUc4UER0ckVzdVQySmN6VmgrUT0&ApiVersion=2.0");
     let req = generate_get_request(url);
     let mut res = client.request(req).await?;
-    // let body = hyper::body::aggregate(res).await?;
-    // let metadata: DriveItemMetadata = serde_json::from_reader(body.reader())?;
-    // let json = serde_json::to_string(&metadata)?;
-    while let Some(next) = res.data().await {
-        let chunk = next?;
-        io::stdout().write_all(&chunk).await?;
-    }
-    // generate_json(json)
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static("video/mp4"),
+    );
+    Ok(res)
 }
 
 async fn request_dispatcher(req: Request<Body>, client: HyperClient) -> Result<Response<Body>> {
     let path = req.uri().path();
     let list_regex = Regex::new(r"/list(?P<path>.+)").unwrap();
     let file_regex = Regex::new(r"/file(?P<path>.+)").unwrap();
-    let download_regex = Regex::new(r"/file(?P<path>.+)").unwrap();
+    let download_regex = Regex::new(r"/download(?P<path>.+)").unwrap();
 
     if list_regex.is_match(path) {
         let caps = list_regex.captures(path).unwrap();
@@ -126,7 +123,7 @@ async fn request_dispatcher(req: Request<Body>, client: HyperClient) -> Result<R
 async fn main() -> Result<()> {
     pretty_env_logger::init();
 
-    let addr = "127.0.0.1:1337".parse().unwrap();
+    let addr = "0.0.0.0:6333".parse().unwrap();
 
     let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);

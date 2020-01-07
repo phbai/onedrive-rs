@@ -4,6 +4,9 @@ mod util;
 #[macro_use]
 extern crate serde_derive;
 
+#[macro_use]
+extern crate lazy_static;
+
 use bytes::buf::BufExt as _;
 use entity::{DriveItemList, DriveItemMetadata};
 use hyper::client::HttpConnector;

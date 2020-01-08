@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 hyper = "0.13.1"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2.8", features = ["full"] }
 hyper-tls = "0.4.0"
 serde_derive = "1.0.104"
 bytes = "0.5.3"

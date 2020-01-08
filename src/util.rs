@@ -4,12 +4,12 @@ use hyper::{header, Body, Method, Request, Response, StatusCode};
 use serde_urlencoded;
 use std::error::Error;
 use std::fmt;
-use std::sync::RwLock;
 
 use tokio::fs;
 use tokio::fs::File;
 use tokio::io::{stdin, BufReader};
 use tokio::prelude::*;
+use tokio::sync::RwLock;
 
 use bytes::buf::BufExt as _;
 
@@ -40,13 +40,13 @@ pub fn build_json_response(json: String) -> Result<Response<Body>> {
   )
 }
 
-pub fn build_get_request(url: String) -> Request<Body> {
+pub async fn build_get_request(url: String) -> Request<Body> {
   Request::builder()
     .method(Method::GET)
     .uri(url)
     .header(
       header::AUTHORIZATION,
-      format!("bearer {}", ACCESS_TOKEN.read().unwrap()),
+      format!("bearer {}", *ACCESS_TOKEN.read().await),
     )
     .body(Default::default())
     .unwrap()
@@ -129,7 +129,7 @@ pub async fn init_config(client: &HyperClient) -> Result<()> {
         Ok(secret) => {
           // 新的有效的access_token
           println!("secret:{:?}", secret);
-          let mut access_token = ACCESS_TOKEN.write().unwrap();
+          let mut access_token = ACCESS_TOKEN.write().await;
           *access_token = secret.access_token.unwrap();
         }
         Err(err) => {

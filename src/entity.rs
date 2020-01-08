@@ -73,15 +73,15 @@ pub struct RefreshTokenRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AccessTokenRequest {
-  client_id: String,
-  redirect_uri: String,
-  client_secret: String,
-  refresh_token: String,
-  grant_type: GrantType,
+  pub client_id: String,
+  pub redirect_uri: String,
+  pub client_secret: String,
+  pub refresh_token: String,
+  pub grant_type: GrantType,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AuthConfig {
-  access_token: String,
-  refresh_token: String,
+  pub access_token: String,
+  pub refresh_token: String,
 }

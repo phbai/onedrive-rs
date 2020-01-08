@@ -4,6 +4,7 @@ use hyper::{header, Body, Method, Request, Response, StatusCode};
 use serde_urlencoded;
 use std::error::Error;
 use std::fmt;
+use std::sync::RwLock;
 
 use tokio::fs;
 use tokio::fs::File;
@@ -13,8 +14,7 @@ use tokio::prelude::*;
 use bytes::buf::BufExt as _;
 
 lazy_static! {
-  #[derive(Debug)]
-  static ref ACCESS_TOKEN: String = String::from("");
+  static ref ACCESS_TOKEN: RwLock<String> = RwLock::new(String::from(""));
 }
 
 #[derive(Debug)]
@@ -44,7 +44,10 @@ pub fn build_get_request(url: String) -> Request<Body> {
   Request::builder()
     .method(Method::GET)
     .uri(url)
-    .header(header::AUTHORIZATION, format!("bearer {:?}", ACCESS_TOKEN))
+    .header(
+      header::AUTHORIZATION,
+      format!("bearer {}", ACCESS_TOKEN.read().unwrap()),
+    )
     .body(Default::default())
     .unwrap()
 }
@@ -126,7 +129,8 @@ pub async fn init_config(client: &HyperClient) -> Result<()> {
         Ok(secret) => {
           // 新的有效的access_token
           println!("secret:{:?}", secret);
-          *ACCESS_TOKEN = secret.access_token.unwrap();
+          let mut access_token = ACCESS_TOKEN.write().unwrap();
+          *access_token = secret.access_token.unwrap();
         }
         Err(err) => {
           println!("获取access_token失败:{}", err);

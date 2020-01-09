@@ -18,7 +18,7 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct OneDriveError(String);
+pub struct OneDriveError(pub String);
 
 impl fmt::Display for OneDriveError {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

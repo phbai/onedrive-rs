@@ -12,7 +12,11 @@ pub enum GrantType {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DriveItemList {
-  value: Vec<DriveItem>,
+  #[serde(skip_serializing)]
+  pub error: Option<String>,
+  #[serde(skip_serializing)]
+  pub error_description: Option<String>,
+  value: Option<Vec<DriveItem>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,8 +37,8 @@ pub struct DriveItem {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DriveItemMetadata {
-  name: String,
-  size: u64,
+  pub name: String,
+  pub size: u64,
   #[serde(
     rename(
       serialize = "downloadUrl",
@@ -42,8 +46,8 @@ pub struct DriveItemMetadata {
     ),
     default = "default_download_url"
   )]
-  download_url: Option<String>,
-  file: Option<DriveItemFile>,
+  pub download_url: Option<String>,
+  pub file: Option<DriveItemFile>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

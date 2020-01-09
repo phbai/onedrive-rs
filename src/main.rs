@@ -1,4 +1,5 @@
 mod entity;
+mod request;
 mod util;
 
 #[macro_use]
@@ -7,6 +8,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
 
+use crate::util::OneDriveError;
 use bytes::buf::BufExt as _;
 use entity::{DriveItemList, DriveItemMetadata};
 use hyper::client::HttpConnector;
@@ -14,8 +16,8 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Method, Request, Response, Server, StatusCode};
 use hyper_tls::HttpsConnector;
 use regex::Regex;
+use request::get_metadata;
 use util::{build_get_request, build_json_response, init_config, GenericError, Result};
-
 pub type HyperClient = Client<HttpsConnector<HttpConnector>>;
 
 static INDEX: &[u8] = b"it works";
@@ -26,40 +28,32 @@ async fn list_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
         "/" => String::from("https://microsoftgraph.chinacloudapi.cn/v1.0/me/drive/root/children?select=name,size,folder,@microsoft.graph.downloadUrl,lastModifiedDateTime"),
         v => format!("https://microsoftgraph.chinacloudapi.cn/v1.0/me/drive/root:{}:/children?select=name,size,folder,@microsoft.graph.downloadUrl,lastModifiedDateTime", v),
     };
-    println!("url:{}", url);
     let req = build_get_request(url).await;
     let res = client.request(req).await?;
     let body = hyper::body::aggregate(res).await?;
     let onedrive_result: DriveItemList = serde_json::from_reader(body.reader())?;
-    println!("onedrive_result: {:?}", onedrive_result);
     let json = serde_json::to_string(&onedrive_result)?;
 
     build_json_response(json)
 }
 
 async fn file_handler(client: &HyperClient, path: &str) -> Result<Response<Body>> {
-    let url = match path {
-        "/" => String::from("https://microsoftgraph.chinacloudapi.cn/v1.0/me/drive/root"),
-        v => format!(
-            "https://microsoftgraph.chinacloudapi.cn/v1.0/me/drive/root:{}",
-            v
-        ),
-    };
-
-    let req = build_get_request(url).await;
-    let res = client.request(req).await?;
-    let body = hyper::body::aggregate(res).await?;
-    let metadata: DriveItemMetadata = serde_json::from_reader(body.reader())?;
+    let metadata = get_metadata(client, path).await?;
     let json = serde_json::to_string(&metadata)?;
-
     build_json_response(json)
 }
 
-async fn download_handler(client: &HyperClient, _path: &str) -> Result<Response<Body>> {
-    let url = String::from("https://alphaone-my.sharepoint.cn/personal/marisa_cnod_xyz/_layouts/15/download.aspx?UniqueId=3a6b217a-16a3-4cdb-9c85-c585be3b52cc&Translate=false&tempauth=eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJhdWQiOiIwMDAwMDAwMy0wMDAwLTBmZjEtY2UwMC0wMDAwMDAwMDAwMDAvYWxwaGFvbmUtbXkuc2hhcmVwb2ludC5jbkAzYjFjODFiMS1kMTU2LTRhZjktYjE2OS1hZTA4MTI4YzAzOTYiLCJpc3MiOiIwMDAwMDAwMy0wMDAwLTBmZjEtY2UwMC0wMDAwMDAwMDAwMDAiLCJuYmYiOiIxNTc4MDUxMjgxIiwiZXhwIjoiMTU3ODA1NDg4MSIsImVuZHBvaW50dXJsIjoiTnVOZXZjWTFtMHNsTlg2RzFDbTFZK3l5aXA2bnBhMlQ4Q0l3UTZQc3lBbz0iLCJlbmRwb2ludHVybExlbmd0aCI6IjE0NiIsImlzbG9vcGJhY2siOiJUcnVlIiwiY2lkIjoiWXpZek1qWmlOV1V0WTJJMVpDMDBNbVJoTFRreU9UQXROR1ppT0RVeU4ySmpZemt3IiwidmVyIjoiaGFzaGVkcHJvb2Z0b2tlbiIsInNpdGVpZCI6IlptWXlZamhoT1RBdE9EVmlNeTAwTlRjM0xUbGtaV0l0WTJFM09ETTJObVkwTVdFMyIsImFwcF9kaXNwbGF5bmFtZSI6Ik9uZURyaXZlIGZvciBBUEkiLCJzaWduaW5fc3RhdGUiOiJbXCJrbXNpXCJdIiwiYXBwaWQiOiJkZmUzNmU2MC02MTMzLTQ4Y2YtODY5Zi00ZDE1YjgzNTQ3NjkiLCJ0aWQiOiIzYjFjODFiMS1kMTU2LTRhZjktYjE2OS1hZTA4MTI4YzAzOTYiLCJ1cG4iOiJtYXJpc2FAY25vZC54eXoiLCJwdWlkIjoiMTAwMzMyMzBDNTFBMTNDOSIsImNhY2hla2V5IjoiMGguZnxtZW1iZXJzaGlwfDEwMDMzMjMwYzUxYTEzYzlAbGl2ZS5jb20iLCJzY3AiOiJhbGxmaWxlcy53cml0ZSBhbGxwcm9maWxlcy5yZWFkIiwidHQiOiIyIiwidXNlUGVyc2lzdGVudENvb2tpZSI6bnVsbH0.dERhK3ltT2RVUndMVWpMZEpRMHZKcTVOV2VmMW4rSFNZL3U5TWJtU216ND0&ApiVersion=2.0");
-    let req = build_get_request(url).await;
-    let res = client.request(req).await?;
-    Ok(res)
+async fn download_handler(client: &HyperClient, path: &str) -> Result<Response<Body>> {
+    let metadata = get_metadata(client, path).await?;
+    println!("metadata:{:?}", metadata);
+    match metadata.download_url {
+        Some(url) => {
+            let req = build_get_request(url).await;
+            let res = client.request(req).await?;
+            Ok(res)
+        }
+        None => Ok(Response::new(NOTFOUND.into())),
+    }
 }
 
 async fn request_dispatcher(req: Request<Body>, client: HyperClient) -> Result<Response<Body>> {
@@ -75,7 +69,7 @@ async fn request_dispatcher(req: Request<Body>, client: HyperClient) -> Result<R
                 Ok(s) => Ok(s),
                 Err(err) => {
                     println!("{:?}", err);
-                    Err(err)
+                    Err(Box::new(OneDriveError(err.to_string())))
                 }
             };
         }

@@ -36,6 +36,7 @@ pub fn build_json_response(json: String) -> Result<Response<Body>> {
     Response::builder()
       .status(StatusCode::OK)
       .header(header::CONTENT_TYPE, "application/json")
+      .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
       .body(Body::from(json))?,
   )
 }

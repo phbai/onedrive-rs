@@ -13,7 +13,7 @@ use bytes::buf::BufExt as _;
 use entity::{DriveItemList, DriveItemMetadata};
 use hyper::client::HttpConnector;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Method, Request, Response, Server, StatusCode};
+use hyper::{header, Body, Client, Method, Request, Response, Server, StatusCode};
 use hyper_tls::HttpsConnector;
 use regex::Regex;
 use request::get_metadata;
@@ -49,7 +49,8 @@ async fn download_handler(client: &HyperClient, path: &str) -> Result<Response<B
     match metadata.download_url {
         Some(url) => {
             let req = build_get_request(url).await;
-            let res = client.request(req).await?;
+            let mut res = client.request(req).await?;
+            res.headers_mut().remove(header::CONTENT_DISPOSITION);
             Ok(res)
         }
         None => Ok(Response::new(NOTFOUND.into())),

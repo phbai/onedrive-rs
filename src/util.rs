@@ -4,6 +4,7 @@ use hyper::{header, Body, Method, Request, Response, StatusCode};
 use serde_urlencoded;
 use std::error::Error;
 use std::fmt;
+use std::time::Instant;
 
 use tokio::fs;
 use tokio::fs::File;
@@ -14,6 +15,7 @@ use tokio::sync::RwLock;
 use bytes::buf::BufExt as _;
 
 lazy_static! {
+  static ref TIME: RwLock<Instant> = RwLock::new(Instant::now());
   static ref ACCESS_TOKEN: RwLock<String> = RwLock::new(String::from(""));
 }
 
@@ -39,6 +41,17 @@ pub fn build_json_response(json: String) -> Result<Response<Body>> {
       .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
       .body(Body::from(json))?,
   )
+}
+
+pub async fn check_access_token_valid(client: &HyperClient) -> Result<()> {
+  let seconds_passed = TIME.read().await.elapsed().as_secs();
+  if seconds_passed > 3500 {
+    println!("access_token快要过期了 正在刷新");
+    init_config(client).await?;
+    let mut time = TIME.write().await;
+    *time = Instant::now();
+  }
+  Ok(())
 }
 
 pub async fn build_get_request(url: String) -> Request<Body> {
@@ -108,7 +121,7 @@ async fn init_token(client: &HyperClient, code: String) -> Result<DriveSecret> {
 }
 
 // 刷新access_token
-async fn refresh_token(client: &HyperClient, refresh_token: String) -> Result<DriveSecret> {
+async fn refresh_token_request(client: &HyperClient, refresh_token: String) -> Result<DriveSecret> {
   let req = build_access_token_request(refresh_token)?;
   let res = client.request(req).await?;
   let body = hyper::body::aggregate(res).await?;
@@ -125,11 +138,10 @@ pub async fn init_config(client: &HyperClient) -> Result<()> {
   match fs::read_to_string("config.json").await {
     Ok(contents) => {
       let secret: DriveSecret = serde_json::from_str(contents.as_str())?;
-      println!("secret:{:?}", secret);
-      match refresh_token(&client, secret.refresh_token.unwrap()).await {
+      match refresh_token_request(&client, secret.refresh_token.unwrap()).await {
         Ok(secret) => {
           // 新的有效的access_token
-          println!("secret:{:?}", secret);
+          println!("access_token刷新成功");
           let mut access_token = ACCESS_TOKEN.write().await;
           *access_token = secret.access_token.unwrap();
         }

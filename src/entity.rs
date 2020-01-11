@@ -44,8 +44,8 @@ pub struct DriveItemFolder {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DriveItemMetadata {
-  pub name: String,
-  pub size: u64,
+  pub name: Option<String>,
+  pub size: Option<u64>,
   #[serde(
     rename(
       serialize = "downloadUrl",
@@ -55,6 +55,10 @@ pub struct DriveItemMetadata {
   )]
   pub download_url: Option<String>,
   pub file: Option<DriveItemFile>,
+  #[serde(skip_serializing)]
+  pub error: Option<String>,
+  #[serde(skip_serializing)]
+  pub error_description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

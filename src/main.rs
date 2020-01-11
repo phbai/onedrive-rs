@@ -10,14 +10,17 @@ extern crate lazy_static;
 
 use crate::util::OneDriveError;
 use bytes::buf::BufExt as _;
-use entity::{DriveItemList, DriveItemMetadata};
+use entity::DriveItemList;
 use hyper::client::HttpConnector;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{header, Body, Client, Method, Request, Response, Server, StatusCode};
 use hyper_tls::HttpsConnector;
 use regex::Regex;
 use request::get_metadata;
-use util::{build_get_request, build_json_response, init_config, GenericError, Result};
+use util::{
+    build_get_request, build_json_response, check_access_token_valid, init_config, GenericError,
+    Result,
+};
 pub type HyperClient = Client<HttpsConnector<HttpConnector>>;
 
 static INDEX: &[u8] = b"it works";
@@ -28,6 +31,7 @@ async fn list_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
         "/" => String::from("https://microsoftgraph.chinacloudapi.cn/v1.0/me/drive/root/children?select=name,size,folder,@microsoft.graph.downloadUrl,lastModifiedDateTime"),
         v => format!("https://microsoftgraph.chinacloudapi.cn/v1.0/me/drive/root:{}:/children?select=name,size,folder,@microsoft.graph.downloadUrl,lastModifiedDateTime", v),
     };
+    check_access_token_valid(&client).await?;
     let req = build_get_request(url).await;
     let res = client.request(req).await?;
     let body = hyper::body::aggregate(res).await?;
@@ -38,6 +42,7 @@ async fn list_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
 }
 
 async fn file_handler(client: &HyperClient, path: &str) -> Result<Response<Body>> {
+    check_access_token_valid(&client).await?;
     let metadata = get_metadata(client, path).await?;
     let json = serde_json::to_string(&metadata)?;
     build_json_response(json)
@@ -51,6 +56,7 @@ async fn download_handler(
     let metadata = get_metadata(client, path).await?;
     match metadata.download_url {
         Some(url) => {
+            check_access_token_valid(&client).await?;
             let mut req = build_get_request(url).await;
             let req_range = from_req.headers().get(header::RANGE);
             match req_range {

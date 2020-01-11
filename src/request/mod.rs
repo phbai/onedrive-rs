@@ -2,26 +2,8 @@ use crate::entity::DriveItemMetadata;
 use crate::util::build_get_request;
 use crate::HyperClient;
 use bytes::buf::BufExt as _;
-use bytes::Buf;
-use hyper::Client;
-use hyper_tls::HttpsConnector;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
-pub async fn fetch_json(url: &str) -> Result<impl Buf> {
-  let https = HttpsConnector::new();
-  let client = Client::builder().build::<_, hyper::Body>(https);
-
-  // Fetch the url...
-  let res = client.get(url.parse()?).await?;
-
-  // asynchronously aggregate the chunks of the body
-  let body = hyper::body::aggregate(res).await?;
-  Ok(body)
-}
-
-// pub async fn get_refresh_token(code: &str) -> {
-// }
 
 pub async fn get_metadata(client: &HyperClient, path: &str) -> Result<DriveItemMetadata> {
   let url = match path {

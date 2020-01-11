@@ -43,12 +43,23 @@ async fn file_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
     build_json_response(json)
 }
 
-async fn download_handler(client: &HyperClient, path: &str) -> Result<Response<Body>> {
+async fn download_handler(
+    client: &HyperClient,
+    path: &str,
+    from_req: &Request<Body>,
+) -> Result<Response<Body>> {
     let metadata = get_metadata(client, path).await?;
-    println!("metadata:{:?}", metadata);
     match metadata.download_url {
         Some(url) => {
-            let req = build_get_request(url).await;
+            let mut req = build_get_request(url).await;
+            let req_range = from_req.headers().get(header::RANGE);
+            match req_range {
+                Some(v) => {
+                    req.headers_mut().insert(header::RANGE, v.into());
+                }
+                None => {}
+            };
+
             let mut res = client.request(req).await?;
             res.headers_mut().remove(header::CONTENT_DISPOSITION);
             Ok(res)
@@ -91,7 +102,7 @@ async fn request_dispatcher(req: Request<Body>, client: HyperClient) -> Result<R
     if download_regex.is_match(path) {
         let caps = download_regex.captures(path).unwrap();
         if req.method() == &Method::GET {
-            return match download_handler(&client, &caps["path"]).await {
+            return match download_handler(&client, &caps["path"], &req).await {
                 Ok(s) => Ok(s),
                 Err(err) => {
                     println!("{:?}", err);

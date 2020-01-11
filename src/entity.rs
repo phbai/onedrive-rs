@@ -33,6 +33,13 @@ pub struct DriveItem {
     default = "default_download_url"
   )]
   download_url: Option<String>,
+  folder: Option<DriveItemFolder>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DriveItemFolder {
+  pub child_count: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

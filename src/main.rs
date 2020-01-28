@@ -51,6 +51,23 @@ async fn file_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
 async fn download_handler(
     client: &HyperClient,
     path: &str,
+    
+) -> Result<Response<Body>> {
+    let metadata = get_metadata(client, path).await?;
+    match metadata.download_url {
+        Some(url) => {
+            check_access_token_valid(&client).await?;
+            let req = build_get_request(url).await;
+            let res = client.request(req).await?;
+            Ok(res)
+        }
+        None => Ok(Response::new(NOTFOUND.into())),
+    }
+}
+
+async fn preview_handler(
+    client: &HyperClient,
+    path: &str,
     from_req: &Request<Body>,
 ) -> Result<Response<Body>> {
     let metadata = get_metadata(client, path).await?;
@@ -79,6 +96,7 @@ async fn request_dispatcher(req: Request<Body>, client: HyperClient) -> Result<R
     let list_regex = Regex::new(r"/list(?P<path>.+)").unwrap();
     let file_regex = Regex::new(r"/file(?P<path>.+)").unwrap();
     let download_regex = Regex::new(r"/download(?P<path>.+)").unwrap();
+    let preview_regex = Regex::new(r"/preview(?P<path>.+)").unwrap();
 
     if list_regex.is_match(path) {
         let caps = list_regex.captures(path).unwrap();
@@ -108,7 +126,20 @@ async fn request_dispatcher(req: Request<Body>, client: HyperClient) -> Result<R
     if download_regex.is_match(path) {
         let caps = download_regex.captures(path).unwrap();
         if req.method() == &Method::GET {
-            return match download_handler(&client, &caps["path"], &req).await {
+            return match download_handler(&client, &caps["path"]).await {
+                Ok(s) => Ok(s),
+                Err(err) => {
+                    println!("{:?}", err);
+                    Err(err)
+                }
+            };
+        }
+    }
+
+    if preview_regex.is_match(path) {
+        let caps = preview_regex.captures(path).unwrap();
+        if req.method() == &Method::GET {
+            return match preview_handler(&client, &caps["path"], &req).await {
                 Ok(s) => Ok(s),
                 Err(err) => {
                     println!("{:?}", err);

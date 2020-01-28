@@ -54,7 +54,7 @@ pub async fn check_access_token_valid(client: &HyperClient) -> Result<()> {
   Ok(())
 }
 
-pub async fn build_get_request(url: String) -> Request<Body> {
+pub async fn build_get_request(url: &String) -> Request<Body> {
   Request::builder()
     .method(Method::GET)
     .uri(url)

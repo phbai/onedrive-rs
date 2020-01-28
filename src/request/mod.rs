@@ -14,7 +14,7 @@ pub async fn get_metadata(client: &HyperClient, path: &str) -> Result<DriveItemM
     ),
   };
 
-  let req = build_get_request(url).await;
+  let req = build_get_request(&url).await;
   let res = client.request(req).await?;
   let body = hyper::body::aggregate(res).await?;
   let metadata: DriveItemMetadata = serde_json::from_reader(body.reader())?;

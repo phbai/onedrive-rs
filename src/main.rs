@@ -32,7 +32,7 @@ async fn list_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
         v => format!("https://microsoftgraph.chinacloudapi.cn/v1.0/me/drive/root:{}:/children?select=name,size,folder,@microsoft.graph.downloadUrl,lastModifiedDateTime", v),
     };
     check_access_token_valid(&client).await?;
-    let req = build_get_request(url).await;
+    let req = build_get_request(&url).await;
     let res = client.request(req).await?;
     let body = hyper::body::aggregate(res).await?;
     let onedrive_result: DriveItemList = serde_json::from_reader(body.reader())?;
@@ -48,19 +48,13 @@ async fn file_handler(client: &HyperClient, path: &str) -> Result<Response<Body>
     build_json_response(json)
 }
 
-async fn download_handler(
-    client: &HyperClient,
-    path: &str,
-    
-) -> Result<Response<Body>> {
+async fn download_handler(client: &HyperClient, path: &str) -> Result<Response<Body>> {
     let metadata = get_metadata(client, path).await?;
     match metadata.download_url {
-        Some(url) => {
-            check_access_token_valid(&client).await?;
-            let req = build_get_request(url).await;
-            let res = client.request(req).await?;
-            Ok(res)
-        }
+        Some(url) => Ok(Response::builder()
+            .status(StatusCode::FOUND)
+            .header(header::LOCATION, url)
+            .body(Body::from(INDEX))?),
         None => Ok(Response::new(NOTFOUND.into())),
     }
 }
@@ -74,7 +68,7 @@ async fn preview_handler(
     match metadata.download_url {
         Some(url) => {
             check_access_token_valid(&client).await?;
-            let mut req = build_get_request(url).await;
+            let mut req = build_get_request(&url).await;
             let req_range = from_req.headers().get(header::RANGE);
             match req_range {
                 Some(v) => {
